@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>POP BANK — Таблица</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 30px 15px;
+    color: #333;
+  }
+  .container {
+    max-width: 1000px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+    overflow: hidden;
+  }
+  header {
+    background: linear-gradient(90deg, #ff6b6b, #feca57);
+    color: #fff;
+    padding: 25px 30px;
+    text-align: center;
+  }
+  header h1 {
+    font-size: 28px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  header p { opacity: 0.9; margin-top: 5px; font-size: 14px; }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 20px 30px;
+    background: #f7f7fa;
+    border-bottom: 1px solid #e3e3ec;
+  }
+  .toolbar input, .toolbar select {
+    padding: 10px 14px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    transition: .2s;
+  }
+  .toolbar input:focus, .toolbar select:focus { border-color: #667eea; }
+  .toolbar button {
+    padding: 10px 18px;
+    border: none;
+    border-radius: 8px;
+    background: #667eea;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    transition: .2s;
+  }
+  .toolbar button:hover { background: #5563d1; transform: translateY(-1px); }
+  .toolbar button.danger { background: #ff6b6b; }
+  .toolbar button.danger:hover { background: #ee5555; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  thead {
+    background: #2d2d44;
+    color: #fff;
+  }
+  th, td {
+    padding: 14px 18px;
+    text-align: left;
+    font-size: 14px;
+  }
+  tbody tr { border-bottom: 1px solid #eee; transition: .15s; }
+  tbody tr:hover { background: #f2f4ff; }
+  tbody tr:last-child { border-bottom: none; }
+
+  .balance { font-weight: 700; }
+  .balance.plus { color: #27ae60; }
+  .balance.minus { color: #e74c3c; }
+
+  .badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .badge.active { background: #d4f8e0; color: #27ae60; }
+  .badge.blocked { background: #ffe0e0; color: #e74c3c; }
+  .badge.vip { background: #fff3cd; color: #b8860b; }
+
+  .empty {
+    text-align: center;
+    padding: 40px;
+    color: #999;
+    font-style: italic;
+  }
+
+  @media (max-width: 600px) {
+    th, td { padding: 10px 8px; font-size: 12px; }
+    header h1 { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>💸 POP BANK</h1>
+    <p>Клиентская база — таблица счетов</p>
+  </header>
+
+  <div class="toolbar">
+    <input type="text" id="search" placeholder="🔍 Поиск по имени или ID...">
+    <select id="filter">
+      <option value="all">Все статусы</option>
+      <option value="active">Активные</option>
+      <option value="blocked">Заблокированные</option>
+      <option value="vip">VIP</option>
+    </select>
+    <button onclick="addRow()">➕ Добавить клиента</button>
+    <button class="danger" onclick="clearAll()">🗑 Очистить</button>
+  </div>
+
+  <table id="bankTable">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Клиент</th>
+        <th>Счёт (₽)</th>
+        <th>Статус</th>
+        <th>Дата открытия</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div class="empty" id="emptyMsg" style="display:none;">Нет данных для отображения</div>
+</div>
+
+<script>
+  // Начальные данные
+  let clients = [
+    { id: 1001, name: "Иван Петров",      balance: 154300, status: "active",  date: "12.01.2023" },
+    { id: 1002, name: "Мария Сидорова",   balance: 87500,  status: "vip",     date: "03.02.2023" },
+    { id: 1003, name: "Алексей Смирнов",  balance: -12000, status: "blocked", date: "21.03.2023" },
+    { id: 1004, name: "Елена Кузнецова",  balance: 432000, status: "active",  date: "07.04.2023" },
+    { id: 1005, name: "Дмитрий Волков",   balance: 0,      status: "active",  date: "15.05.2023" },
+  ];
+
+  const tbody = document.getElementById('tbody');
+  const emptyMsg = document.getElementById('emptyMsg');
+
+  function render() {
+    const q = document.getElementById('search').value.toLowerCase();
+    const f = document.getElementById('filter').value;
+
+    const filtered = clients.filter(c => {
+      const matchQ = c.name.toLowerCase().includes(q) || String(c.id).includes(q);
+      const matchF = f === 'all' || c.status === f;
+      return matchQ && matchF;
+    });
+
+    tbody.innerHTML = '';
+    if (filtered.length === 0) {
+      emptyMsg.style.display = 'block';
+      return;
+    }
+    emptyMsg.style.display = 'none';
+
+    filtered.forEach(c => {
+      const tr = document.createElement('tr');
+
+      const badgeClass = c.status === 'active' ? 'active' : c.status === 'vip' ? 'vip' : 'blocked';
+      const badgeText  = c.status === 'active' ? 'Активен' : c.status === 'vip' ? 'VIP' : 'Блок';
+
+      const balClass = c.balance > 0 ? 'plus' : c.balance < 0 ? 'minus' : '';
+      const balText  = c.balance.toLocaleString('ru-RU') + ' ₽';
+
+      tr.innerHTML = `
+        <td>${c.id}</td>
+        <td>${c.name}</td>
+        <td class="balance ${balClass}">${balText}</td>
+        <td><span class="badge ${badgeClass}">${badgeText}</span></td>
+        <td>${c.date}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function addRow() {
+    const name = prompt("Имя клиента:");
+    if (!name) return;
+    const balance = parseFloat(prompt("Баланс счёта (₽):", "0")) || 0;
+    const status = prompt("Статус (active / vip / blocked):", "active") || "active";
+    const id = Math.max(...clients.map(c => c.id), 1000) + 1;
+    const date = new Date().toLocaleDateString('ru-RU');
+
+    clients.push({ id, name, balance, status, date });
+    render();
+  }
+
+  function clearAll() {
+    if (confirm("Удалить все данные?")) {
+      clients = [];
+      render();
+    }
+  }
+
+  document.getElementById('search').addEventListener('input', render);
+  document.getElementById('filter').addEventListener('change', render);
+
+  render();
+</script>
+</body>
+</html>
